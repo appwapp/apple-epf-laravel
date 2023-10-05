@@ -2,12 +2,15 @@
 
 namespace Appwapp\EPF\Models\Itunes;
 
+use Appwapp\EPF\Filters\ArtistFilter;
 use Appwapp\EPF\Models\EPFModel;
+use Appwapp\EPF\Traits\Filterable;
 use Appwapp\EPF\Traits\HasSearchTerms;
+use Illuminate\Support\Collection;
 
 class Artist extends EPFModel
 {
-    use HasSearchTerms;
+    use Filterable, HasSearchTerms;
 
     /**
      * The table associated with the model.
@@ -46,4 +49,44 @@ class Artist extends EPFModel
     protected $casts = [
         'is_actual_artist' => 'boolean',
     ];
+
+    /**
+     * Get the filtered identifiers.
+     *
+     * @return Collection
+     */
+    protected function getFilteredIds(): ?Collection
+    {
+        // Check if Artist is configured to be filtered
+        $filterBy = config('apple-epf.filter_by');
+        if (! isset($filterBy[ArtistFilter::class])) {
+            return null;
+        }
+    
+        // Get the filtered model
+        $model = $filterBy[ArtistFilter::class]['model'];
+
+        // Returns the filtered collection
+        return $model::get()->pluck($filterBy[ArtistFilter::class]['attribute']);
+    }
+
+    /**
+     * Get the filtered attribute.
+     *
+     * @return string
+     */
+    protected function getFilteredAttribute(): string
+    {
+        return 'artist_id';
+    }
+
+    /**
+     * Get the filtered relation.
+     *
+     * @return string
+     */
+    protected function getFilteredRelation(): string
+    {
+        return 'artist';
+    }
 }
