@@ -129,6 +129,11 @@ class EPFImport extends EPFCommand
             return;
         }
 
+        if ($this->option('skip-confirm')) {
+            $this->error('More than one folder to choose from, aborting.');
+            exit;
+        }
+
         $this->folder = $this->option('folder') ?? $this->choice('Of which folder do you wish to start the import?', $folderChoice, 0);
     }
 
