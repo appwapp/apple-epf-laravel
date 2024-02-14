@@ -2,6 +2,7 @@
 
 namespace Appwapp\EPF;
 
+use Appwapp\EPF\Exceptions\AppleEpfLaravelException;
 use Appwapp\EPF\Traits\FeedCredentials;
 use Appwapp\EPF\Traits\FileStorage;
 use Illuminate\Support\Carbon;
@@ -14,18 +15,6 @@ use Illuminate\Support\Collection;
 class EPFCrawler
 {
     use FeedCredentials, FileStorage;
-
-    /**
-     * Constants of types of feeds generated
-     * on specific days of the week.
-     *
-     * @var int
-     */
-    public const
-        FULL_FIRST_FEED_DAY         = 0,
-        FULL_SECOND_FEED_DAY        = 6,
-        INCREMENTAL_FIRST_FEED_DAY  = 2,
-        INCREMENTAL_SECOND_FEED_DAY = 4;
 
     /**
      * The index of the current content.
@@ -42,6 +31,12 @@ class EPFCrawler
     protected string $currentCrawlerUrl;
 
     /**
+     * URL for the root.
+     * @var mixed
+     */
+    protected string $urlRoot;
+
+    /**
      * URL for the full import.
      * @var mixed
      */
@@ -52,12 +47,6 @@ class EPFCrawler
      * @var string
      */
     protected string $urlForIncrementalImportFiles;
-
-    /**
-     * URL for the incremental import from the latest full import.
-     * @var string
-     */
-    protected string $urlForIncrementalImportFilesFromFull;
 
     /**
      * All the links to crawl for.
@@ -85,9 +74,9 @@ class EPFCrawler
      */
     public function __construct()
     {
-        $this->urlForFullImportFiles                = "https://feeds.itunes.apple.com/feeds/epf/v5/current/";
-        $this->urlForIncrementalImportFiles         = "https://feeds.itunes.apple.com/feeds/epf/v5/current/incremental/current/";
-        $this->urlForIncrementalImportFilesFromFull = "https://feeds.itunes.apple.com/feeds/epf/v5/%%date%%/incremental/current/";
+        $this->urlRoot                      = "https://feeds.itunes.apple.com/feeds/epf/v5/";
+        $this->urlForFullImportFiles        = "https://feeds.itunes.apple.com/feeds/epf/v5/current/";
+        $this->urlForIncrementalImportFiles = "https://feeds.itunes.apple.com/feeds/epf/v5/current/incremental/current/";
 
         $this->links = collect([
             'full'        => collect($this->getFullImportListOfTypes()),
@@ -149,7 +138,7 @@ class EPFCrawler
             return str_contains($link->getUri(), '.md5');
         })->map(function ($link) {
             return $link->getUri();
-        });        
+        });
 
         return $links;
     }
@@ -157,25 +146,53 @@ class EPFCrawler
     /**
      * Gets the incremental import feed URL from the
      * last full import feed.
+     * 
+     * @throws AppleEpfLaravelException
      *
      * @return string
      */
     private function getIncrementalUrlFromLastFullFeed()
     {
-        // Depending on the day of the week, incremental import file
-        // might not be in the current folder
-        $date  = new Carbon();
+        // Crawl the root folder to get the feed generation dates
+        $this->crawlFolder($this->urlRoot);
 
-        // Get the latest full feed date
-        if (date('w') > self::FULL_FIRST_FEED_DAY) {
-            $date->setDaysFromStartOfWeek(self::FULL_FIRST_FEED_DAY);
-        } else {
-            $date->week($date->week() - 1);
-            $date->setDaysFromStartOfWeek(self::FULL_SECOND_FEED_DAY);
+        $crawler = new Crawler($this->currentIndexContent, $this->urlRoot);
+        $links   = collect($crawler->filter('table > tr > td > a')->links());
+
+        $links =  $links->reject(function ($link) {
+            return str_contains($link->getUri(), 'current');
+        })->reject(function ($link) {
+            return str_contains($link->getUri(), '.md');
+        })->map(function ($link) {
+            return $link->getUri();
+        });
+
+        // Crawl each link to get the latest incremental
+        $incrementalLink = null;
+
+        foreach ($links as $dateLink) {
+            $this->crawlFolder($dateLink);
+
+            $crawler = new Crawler($this->currentIndexContent, $dateLink);
+            $links   = collect($crawler->filter('table > tr > td > a')->links());
+
+            $potentialLink = $links->filter(function ($link) {
+                return str_contains($link->getUri(), 'incremental');
+            })->map(function ($link) {
+                return $link->getUri();
+            })->first();
+
+            if ($potentialLink !== null) {
+                $incrementalLink = $potentialLink;
+            }
         }
 
-        // Replace the date in the URL
-        return str_replace('%%date%%', $date->format('Ymd'), $this->urlForIncrementalImportFilesFromFull);
+        if ($incrementalLink === null) {
+            throw new AppleEpfLaravelException('Could not find any incremental URL from FULL feeds.');
+        }
+
+        // Return the current incremental link
+        return sprintf('%scurrent/', $incrementalLink);
     }
 
     /**
