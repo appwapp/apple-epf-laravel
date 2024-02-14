@@ -18,7 +18,7 @@ class EPFImport extends EPFCommand
     protected $signature = 'epf:import
         {--type= : the type of import, either "full", or "incremental"}
         {--group= : the group of import, either "itunes", "match", "popularity" or "pricing"}
-        {--folder= : the folder name to import from, ex: "itunes20230115"}
+        {--folder= : the folder name to import from (ex: "itunes20230115"), if only one is available, it will be selected}
         {--file= : the file to import or "all"}
         {--skip-confirm : skip the confirmation prompt}
         {--delete : deletes the file once imported}';
@@ -122,6 +122,11 @@ class EPFImport extends EPFCommand
         if (count($folderChoice) === 0) {
             $this->error('Can\'t find any directory for files with those choices, did you download and extract the files first?');
             exit;
+        }
+
+        if (count($folderChoice) === 1) {
+            $this->folder = $folderChoice[0];
+            return;
         }
 
         $this->folder = $this->option('folder') ?? $this->choice('Of which folder do you wish to start the import?', $folderChoice, 0);
