@@ -1,6 +1,6 @@
 {
     "name": "appwapp/apple-epf-laravel",
-    "version": "0.4.4",
+    "version": "0.4.3",
     "description": "Provides models and other tools to use Apple's EPF in Laravel.",
     "keywords": [
         "atomescrochus",
@@ -28,7 +28,7 @@
         "php": "^8.0",
         "alchemy/zippy": "^1.0",
         "guzzlehttp/guzzle": "^7.5",
-        "illuminate/support": "^9.52",
+        "illuminate/support": "^8.0",
         "symfony/dom-crawler": "^6.2",
         "symfony/process": "^5.0"
     },
