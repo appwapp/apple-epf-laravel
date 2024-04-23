@@ -26,7 +26,7 @@
     ],
     "require": {
         "php": "^8.0",
-        "alchemy/zippy": "^1.0",
+        "appwapp/zippy": "^1.0.1",
         "guzzlehttp/guzzle": "^7.5",
         "illuminate/support": "^8.0|^9.0|^10.0",
         "symfony/dom-crawler": "^6.2",
@@ -60,11 +60,5 @@
                 "Appwapp\\EPF\\EPFServiceProvider"
             ]
         }
-    },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "git@github.com:appwapp/Zippy.git"
-        }
-    ]
+    }
 }
